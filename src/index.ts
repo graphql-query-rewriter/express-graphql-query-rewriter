@@ -1,22 +1,22 @@
 import { Rewriter, RewriteHandler } from 'graphql-query-rewriter';
 import { Request, Response, NextFunction } from 'express';
-import { getGraphQLParams } from 'express-graphql';
+import * as graphqlHTTP from 'express-graphql';
 
 interface RewriterMiddlewareOpts {
   rewriters: Rewriter[];
 }
 
 const rewriteResJson = (res: Response) => {
-  const originalJson = res.json;
+  const originalJsonFunc = res.json.bind(res);
   res.json = function(body: any) {
-    if (!this.req || !this.req._rewriteHandler) return originalJson(body);
+    if (!this.req || !this.req._rewriteHandler) return originalJsonFunc(body);
     const rewriteHandler = this.req._rewriteHandler;
     if (typeof body === 'object' && !(body instanceof Buffer) && body.data) {
       const newResponseData = rewriteHandler.rewriteResponse(body.data);
       const newResBody = { ...body, data: newResponseData };
-      return originalJson(newResBody);
+      return originalJsonFunc(newResBody);
     }
-    return originalJson(body);
+    return originalJsonFunc(body);
   };
 };
 
@@ -26,7 +26,7 @@ const graphqlRewriterMiddleware = ({ rewriters }: RewriterMiddlewareOpts) => asy
   next: NextFunction
 ) => {
   try {
-    const params = await getGraphQLParams(req);
+    const params = await (graphqlHTTP as any).getGraphQLParams(req);
     const { query, variables, operationName } = params;
     if (!query) {
       return;

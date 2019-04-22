@@ -4,12 +4,13 @@ declare namespace Express {
   }
 }
 
-declare module 'express-graphql' {
-  interface Params {
-    query: string | null | undefined;
-    variables: { [name: string]: any } | null | undefined;
-    operationName: string | null | undefined;
-    raw: boolean | null | undefined;
-  }
-  function getGraphQLParams(req: Request): Promise<Params>;
-}
+// declare module 'express-graphql' {
+//   interface Params {
+//     query: string | null | undefined;
+//     variables: { [name: string]: any } | null | undefined;
+//     operationName: string | null | undefined;
+//     raw: boolean | null | undefined;
+//   }
+//   function getGraphQLParams(req: import('express').Request): Promise<Params>;
+//   function graphqlHTTP(options: any): any;
+// }
