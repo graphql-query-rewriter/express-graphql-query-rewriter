@@ -1,13 +1,13 @@
-import { graphqlRewriterMiddleware } from '../src';
-import { buildSchema } from 'graphql';
-import * as graphqlHTTP from 'express-graphql';
 import * as express from 'express';
-import * as request from 'supertest';
+import * as graphqlHTTP from 'express-graphql';
+import { buildSchema } from 'graphql';
 import {
-  FieldArgTypeRewriter,
   FieldArgsToInputTypeRewriter,
+  FieldArgTypeRewriter,
   NestFieldOutputsRewriter
 } from 'graphql-query-rewriter';
+import * as request from 'supertest';
+import { graphqlRewriterMiddleware } from '../src';
 
 const schema = buildSchema(`
   type Query {
