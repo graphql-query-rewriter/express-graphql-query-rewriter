@@ -114,7 +114,7 @@ describe('middleware test', () => {
     });
   });
 
-  it('rewrites mutations and responses too', async () => {
+  const setupMutationApp = () => {
     const app = express();
 
     app.use(
@@ -141,7 +141,11 @@ describe('middleware test', () => {
         rootValue
       })
     );
+    return app;
+  };
 
+  it('rewrites mutations and responses too', async () => {
+    const app = setupMutationApp();
     // in the past, we didn't use input or output types correctly
     // so we need to rewrite the query to this old query will work still
     const deprecatedQuery = `
@@ -184,5 +188,191 @@ describe('middleware test', () => {
         name: 'Squirtle'
       }
     });
+  });
+
+  it('works with no variables', async () => {
+    const app = setupMutationApp();
+
+    // in the past, we didn't use input or output types correctly
+    // so we need to rewrite the query to this old query will work still
+    const deprecatedQuery = `
+      mutation {
+        makePokemon(name: "Squirtle") {
+          id
+          name
+        }
+      }
+    `;
+
+    const deprecatedRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery });
+    expect(deprecatedRes.body.errors).toBe(undefined);
+    expect(deprecatedRes.body.data.makePokemon).toEqual({
+      id: '17',
+      name: 'Squirtle'
+    });
+
+    // the new version of the query should still work with no problem though
+    const newQuery = `
+      mutation {
+        makePokemon(input: { name: "Squirtle" }) {
+          pokemon {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const newRes = await request(app)
+      .post('/graphql')
+      .send({ query: newQuery });
+    expect(newRes.body.errors).toBe(undefined);
+    expect(newRes.body.data.makePokemon).toEqual({
+      pokemon: {
+        id: '17',
+        name: 'Squirtle'
+      }
+    });
+  });
+
+  it('doesnt transform the response if theres no _rewriteHandler', async () => {
+    const app = express();
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        rewriters: [
+          new FieldArgsToInputTypeRewriter({
+            fieldName: 'makePokemon',
+            argNames: ['name']
+          }),
+          new NestFieldOutputsRewriter({
+            fieldName: 'makePokemon',
+            newOutputName: 'pokemon',
+            outputsToNest: ['id', 'name']
+          })
+        ]
+      })
+    );
+
+    app.use('/graphql', (req, res) => {
+      (req as any)._rewriteHandler = null;
+      res.json({ data: { random: true } });
+    });
+
+    const deprecatedQuery = `
+      mutation {
+        makePokemon(name: "Squirtle") {
+          id
+          name
+        }
+      }
+    `;
+
+    const deprecatedRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery });
+    expect(deprecatedRes.body.data).toEqual({ random: true });
+  });
+
+  it('ignores missing queries or invalid graphql', async () => {
+    const app = express();
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        rewriters: [
+          new FieldArgsToInputTypeRewriter({
+            fieldName: 'makePokemon',
+            argNames: ['name']
+          }),
+          new NestFieldOutputsRewriter({
+            fieldName: 'makePokemon',
+            newOutputName: 'pokemon',
+            outputsToNest: ['id', 'name']
+          })
+        ]
+      })
+    );
+
+    app.use('/graphql', (req, res) => {
+      res.json({ data: { random: true } });
+    });
+
+    const missingQueryRes = await request(app).post('/graphql');
+    expect(missingQueryRes.body.data).toEqual({ random: true });
+
+    const invalidQueryRes = await request(app)
+      .post('/graphql')
+      .send({ query: '123 peekaboo!' });
+    expect(invalidQueryRes.body.data).toEqual({ random: true });
+  });
+
+  it('ignores invalid json responses', async () => {
+    const app = express();
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        rewriters: [
+          new FieldArgsToInputTypeRewriter({
+            fieldName: 'makePokemon',
+            argNames: ['name']
+          }),
+          new NestFieldOutputsRewriter({
+            fieldName: 'makePokemon',
+            newOutputName: 'pokemon',
+            outputsToNest: ['id', 'name']
+          })
+        ]
+      })
+    );
+
+    app.use('/graphql', (req, res) => {
+      res.json('jimmy');
+    });
+
+    const deprecatedQuery = `
+      mutation {
+        makePokemon(name: "Squirtle") {
+          id
+          name
+        }
+      }
+    `;
+
+    const invalidQueryRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery });
+    expect(invalidQueryRes.body).toEqual('jimmy');
+  });
+
+  it('throws on invalid graphql if ignoreParsingErrors === false', async () => {
+    const app = express();
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        ignoreParsingErrors: false,
+        rewriters: [
+          new FieldArgsToInputTypeRewriter({
+            fieldName: 'makePokemon',
+            argNames: ['name']
+          })
+        ]
+      })
+    );
+
+    app.use('/graphql', (req, res) => {
+      res.json({ data: { random: true } });
+    });
+
+    const errorRes = await request(app)
+      .post('/graphql')
+      .send({ query: '123 peekaboo!' });
+    expect(errorRes.status).toBe(500);
+    expect(errorRes.body).toEqual({});
   });
 });

@@ -4,6 +4,7 @@ import { RewriteHandler, Rewriter } from 'graphql-query-rewriter';
 
 interface RewriterMiddlewareOpts {
   rewriters: Rewriter[];
+  ignoreParsingErrors?: boolean;
 }
 
 const rewriteResJson = (res: Response) => {
@@ -20,14 +21,17 @@ const rewriteResJson = (res: Response) => {
   };
 };
 
-const graphqlRewriterMiddleware = ({ rewriters }: RewriterMiddlewareOpts) =>
+const graphqlRewriterMiddleware = ({
+  rewriters,
+  ignoreParsingErrors = true
+}: RewriterMiddlewareOpts) =>
   // tslint:disable-next-line: only-arrow-functions
   async function(req: Request, res: Response, next: NextFunction) {
     try {
       const params = await (graphqlHTTP as any).getGraphQLParams(req);
       const { query, variables, operationName } = params;
       if (!query) {
-        return;
+        return next();
       }
       const rewriteHandler = new RewriteHandler(rewriters);
       const newQueryAndVariables = rewriteHandler.rewriteRequest(query, variables || undefined);
@@ -43,9 +47,10 @@ const graphqlRewriterMiddleware = ({ rewriters }: RewriterMiddlewareOpts) =>
       }
       req._rewriteHandler = rewriteHandler;
       rewriteResJson(res);
-    } finally {
-      next();
+    } catch (err) {
+      if (!ignoreParsingErrors) return next(err);
     }
+    next();
   };
 
 export { graphqlRewriterMiddleware };
