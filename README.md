@@ -5,5 +5,4 @@
 [![npm](https://badgen.net/npm/v/express-graphql-query-rewriter)](https://www.npmjs.com/package/express-graphql-query-rewriter)
 [![license](https://badgen.net/npm/license/express-graphql-query-rewriter)](https://opensource.org/licenses/MIT)
 
-
-WIP!
+Express middleware for using [graphql-query-rewriter](https://github.com/chanind/graphql-query-rewriter) with [express-graphql](https://github.com/graphql/express-graphql). See the [graphql-query-rewriter](https://github.com/chanind/graphql-query-rewriter) repo for usage instructions and docs.
