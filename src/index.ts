@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Response, RequestHandler } from 'express';
 import * as graphqlHTTP from 'express-graphql';
 import { RewriteHandler, Rewriter } from 'graphql-query-rewriter';
 
@@ -24,9 +24,9 @@ const rewriteResJson = (res: Response) => {
 const graphqlRewriterMiddleware = ({
   rewriters,
   ignoreParsingErrors = true
-}: RewriterMiddlewareOpts) =>
+}: RewriterMiddlewareOpts): RequestHandler =>
   // tslint:disable-next-line: only-arrow-functions
-  async function(req: Request, res: Response, next: NextFunction) {
+  async function(req, res, next) {
     try {
       const params = await (graphqlHTTP as any).getGraphQLParams(req);
       const { query, variables, operationName } = params;
