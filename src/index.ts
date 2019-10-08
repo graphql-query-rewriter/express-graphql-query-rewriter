@@ -1,4 +1,4 @@
-import { Response, RequestHandler } from 'express';
+import { RequestHandler, Response } from 'express';
 import * as graphqlHTTP from 'express-graphql';
 import { RewriteHandler, Rewriter } from 'graphql-query-rewriter';
 
