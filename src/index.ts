@@ -41,7 +41,7 @@ const graphqlRewriterMiddleware = ({
         variables: newQueryAndVariables.variables
       };
       if (typeof req.body === 'object' && !(req.body instanceof Buffer)) {
-        req.body = { ...req.body, newBody };
+        req.body = { ...req.body, ...newBody };
       } else {
         req.body = newBody;
       }

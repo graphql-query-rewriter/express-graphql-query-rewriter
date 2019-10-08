@@ -114,6 +114,58 @@ describe('middleware test', () => {
     });
   });
 
+  it('works with already-decoded response.body', async () => {
+    const app = express();
+
+    // decode the request before it gets to our middleware
+    app.use('/graphql', async (req, res, next) => {
+      req.body = await (graphqlHTTP as any).getGraphQLParams(req);
+      next();
+    });
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        rewriters: [
+          new FieldArgTypeRewriter({
+            fieldName: 'getPokemon',
+            argName: 'id',
+            oldType: 'String!',
+            newType: 'ID!'
+          })
+        ]
+      })
+    );
+
+    app.use(
+      '/graphql',
+      graphqlHTTP({
+        schema,
+        rootValue
+      })
+    );
+
+    // in the past, we accidentally used `String!` instead of `ID`
+    // so we need to rewrite the query to this old query will work still
+    const deprecatedQuery = `
+      query getByIdWithWrongType($id: String!) {
+        getPokemon(id: $id) {
+          id
+          name
+        }
+      }
+    `;
+
+    const deprecatedRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery, variables: { id: '7' } });
+    expect(deprecatedRes.body.errors).toBe(undefined);
+    expect(deprecatedRes.body.data.getPokemon).toEqual({
+      id: '7',
+      name: 'Charmander'
+    });
+  });
+
   const setupMutationApp = () => {
     const app = express();
 
