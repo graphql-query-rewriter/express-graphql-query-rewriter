@@ -35,7 +35,7 @@ const rewriteResRaw = (res: Response) => {
     if (isJsonContent && body instanceof Buffer) {
       try {
         const bodyJson = JSON.parse(body.toString('utf8'));
-        if (bodyJson.data) {
+        if (bodyJson && bodyJson.data) {
           const newResponseData = rewriteHandler.rewriteResponse(bodyJson.data);
           const newResBodyJson = { ...bodyJson, data: newResponseData };
           // assume this was pretty-printed if we're here and not in the res.json handler

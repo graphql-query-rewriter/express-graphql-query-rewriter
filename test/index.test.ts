@@ -363,7 +363,7 @@ describe('middleware test', () => {
     expect(invalidQueryRes.body.data).toEqual({ random: true });
   });
 
-  it('ignores invalid json responses', async () => {
+  it('ignores invalid json responses sent via response.json()', async () => {
     const app = express();
 
     app.use(
@@ -400,6 +400,60 @@ describe('middleware test', () => {
       .post('/graphql')
       .send({ query: deprecatedQuery });
     expect(invalidQueryRes.body).toEqual('jimmy');
+  });
+
+  it('ignores invalid json responses sent via response.end()', async () => {
+    const app = express();
+
+    app.use(
+      '/graphql',
+      graphqlRewriterMiddleware({
+        rewriters: [
+          new FieldArgsToInputTypeRewriter({
+            fieldName: 'makePokemon',
+            argNames: ['name']
+          }),
+          new NestFieldOutputsRewriter({
+            fieldName: 'makePokemon',
+            newOutputName: 'pokemon',
+            outputsToNest: ['id', 'name']
+          })
+        ]
+      })
+    );
+
+    app.use('/graphql', (req, res) => {
+      const messedUpRes = Buffer.from('jisdhfiods{{{{', 'utf8');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', String(messedUpRes.length));
+      res.end(messedUpRes);
+    });
+
+    const deprecatedQuery = `
+      mutation {
+        makePokemon(name: "Squirtle") {
+          id
+          name
+        }
+      }
+    `;
+
+    const invalidQueryRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery })
+      // disable supertest json parsing
+      .buffer(true)
+      .parse((res, cb) => {
+        let data = Buffer.from('');
+        res.on('data', chunk => {
+          data = Buffer.concat([data, chunk]);
+        });
+        res.on('end', () => {
+          cb(null, data.toString());
+        });
+      });
+
+    expect(invalidQueryRes.body).toEqual('jisdhfiods{{{{');
   });
 
   it('is able to rewriter responses with pretty printing enabled on express-graphql', async () => {
