@@ -3,4 +3,8 @@ declare namespace Express {
   interface Request {
     _rewriteHandler?: import('graphql-query-rewriter').RewriteHandler;
   }
+
+  interface Response {
+    _isRewritten?: boolean;
+  }
 }
