@@ -166,7 +166,7 @@ describe('middleware test', () => {
     });
   });
 
-  const setupMutationApp = () => {
+  const setupMutationApp = (extraExpressGraphqlOpts: any = {}) => {
     const app = express();
 
     app.use(
@@ -190,7 +190,8 @@ describe('middleware test', () => {
       '/graphql',
       graphqlHTTP({
         schema,
-        rootValue
+        rootValue,
+        ...extraExpressGraphqlOpts
       })
     );
     return app;
@@ -399,6 +400,52 @@ describe('middleware test', () => {
       .post('/graphql')
       .send({ query: deprecatedQuery });
     expect(invalidQueryRes.body).toEqual('jimmy');
+  });
+
+  it('is able to rewriter responses with pretty printing enabled on express-graphql', async () => {
+    const app = setupMutationApp({ pretty: true });
+    // in the past, we didn't use input or output types correctly
+    // so we need to rewrite the query to this old query will work still
+    const deprecatedQuery = `
+      mutation makePokemonWithWrongType($name: String!) {
+        makePokemon(name: $name) {
+          id
+          name
+        }
+      }
+    `;
+
+    const deprecatedRes = await request(app)
+      .post('/graphql')
+      .send({ query: deprecatedQuery, variables: { name: 'Squirtle' } });
+    expect(deprecatedRes.body.errors).toBe(undefined);
+    expect(deprecatedRes.body.data.makePokemon).toEqual({
+      id: '17',
+      name: 'Squirtle'
+    });
+
+    // the new version of the query should still work with no problem though
+    const newQuery = `
+      mutation makePokemon($input: MakePokemonInput!) {
+        makePokemon(input: $input) {
+          pokemon {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const newRes = await request(app)
+      .post('/graphql')
+      .send({ query: newQuery, variables: { input: { name: 'Squirtle' } } });
+    expect(newRes.body.errors).toBe(undefined);
+    expect(newRes.body.data.makePokemon).toEqual({
+      pokemon: {
+        id: '17',
+        name: 'Squirtle'
+      }
+    });
   });
 
   it('throws on invalid graphql if ignoreParsingErrors === false', async () => {
